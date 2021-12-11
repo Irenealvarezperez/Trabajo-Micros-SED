@@ -59,6 +59,14 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define TRIG_ULTRASONIDOS_Pin GPIO_PIN_2
+#define TRIG_ULTRASONIDOS_GPIO_Port GPIOA
+#define ECHO_ULTRASONIDOS_Pin GPIO_PIN_9
+#define ECHO_ULTRASONIDOS_GPIO_Port GPIOE
+#define LUZ_Pin GPIO_PIN_8
+#define LUZ_GPIO_Port GPIOC
+#define LED_GARAJE_Pin GPIO_PIN_9
+#define LED_GARAJE_GPIO_Port GPIOC
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

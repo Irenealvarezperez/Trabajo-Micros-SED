@@ -40,6 +40,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 
@@ -52,6 +54,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -72,16 +75,15 @@ uint8_t Is_First_Captured = 0;  // is the first value captured ?
 uint8_t Distance  = 0;
 
 //Variables puerta
-#define RANGE 11.1
-uint32_t temp_puerta, espera_puerta;
-int angulo=90, apertura=0, flag=0;
-float servo;
-volatile boton1=0,boton2=0,boton3=0,boton4=0;
-int luz=0;
-int modo=0;
-volatile uint16_t ADC_val=100;
+uint32_t espera_puerta;
+int abierto=0, bloqueo=1, abriendo=0, cerrando=0;
+uint32_t mov;
+volatile int boton1=0,boton2=0,boton3=0,boton4=0;
 
-int debouncerBoton3(volatile int* button_int, GPIO_TypeDef* GPIO_port, uint16_t GPIO_number){
+//variables LDR
+uint32_t LDR_val;
+
+int debouncer(volatile int* button_int, GPIO_TypeDef* GPIO_port, uint16_t GPIO_number){
 	static uint8_t cuenta_boton=0;
 	static int cuenta=0;
 
@@ -109,117 +111,113 @@ int debouncerBoton3(volatile int* button_int, GPIO_TypeDef* GPIO_port, uint16_t 
 	return 0;
 }
 
-int debouncerBoton4(volatile int* button_int, GPIO_TypeDef* GPIO_port, uint16_t GPIO_number){
-	static uint8_t cuenta_boton=0;
-	static int cuenta=0;
-
-	if (*button_int==1){
-		if (cuenta_boton==0) {
-			cuenta=HAL_GetTick();
-			cuenta_boton++;
-		}
-		if (HAL_GetTick()-cuenta>=20){
-			cuenta=HAL_GetTick();
-			if (HAL_GPIO_ReadPin(GPIO_port, GPIO_number)!=1){
-				cuenta_boton=1;
-			}
-			else{
-				cuenta_boton++;
-			}
-			if (cuenta_boton==3){ //Periodo antirebotes
-				cuenta_boton=0;
-				*button_int=0;
-				return 1;
-			}
-		}
-
-	}
-	return 0;
+void servo(TIM_HandleTypeDef* htim, int grados){
+	 const int MAX=20;
+	 float ms= grados/90.0f +0.5f;
+	 float ciclo = ms/(float)MAX;
+	 mov =htim->Instance->ARR*ciclo;
+	 htim->Instance->CCR1 = mov;
 }
 
 void garagecontrol(void)  //PUERTA
 {
-if((debouncerBoton3(&boton3,GPIOA,GPIO_PIN_0))==1)
-{
- if(flag==1 && apertura==1)
- {
-	 flag=0;
-   }
- else if (flag==0 && apertura==1)
- {
-	 flag=1;
- }
-}
-if ((debouncerBoton4(&boton4,GPIOA,GPIO_PIN_1))==1)
-{
- if(apertura==1)
- {
- apertura=0;
-espera_puerta=0;//---
-   }
- else
- {
-  apertura=1;
- }
- }
- if(angulo==0 && flag==0)
- {
- if(espera_puerta==0 && apertura==1 )//_-
-	 espera_puerta = HAL_GetTick();
- else if(HAL_GetTick()-espera_puerta >= 10000  &&  apertura==1)
- {
-flag=1;
-espera_puerta=0;
- }
- }
- if((HAL_GetTick()-temp_puerta )>=20 && apertura==1)
- {
- if(angulo<90 && flag==1)
- {
-	 angulo=angulo+10;
- espera_puerta=0;
- temp_puerta=HAL_GetTick();
- }
- else if(angulo> 0 && flag==0)
- {
-	 angulo=angulo-10;
- espera_puerta=0;
- temp_puerta=HAL_GetTick();
- }
- }
- servo = (RANGE*angulo)+500;
-   htim2.Instance->CCR4 = servo;
-   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, !apertura);
+
+	if((debouncer(&boton3,GPIOA,GPIO_PIN_0))==1)
+	{
+		  if(bloqueo==1 && abierto==0)
+		 {
+			 bloqueo=0;
+		   }
+		 else if (bloqueo==0 && abierto==0)
+		 {
+			 bloqueo=1;
+		 }
+	}
+
+
+	if ((debouncer(&boton4,GPIOA,GPIO_PIN_1))==1)
+	{
+		 if(abierto==1)
+		 {
+			 //abierto=0;
+			 espera_puerta=0;
+			 cerrando=1;
+		 }
+		 else
+		 {
+			  //abierto=1;
+			  abriendo=1;
+
+		 }
+	}
+
+	 if(abierto==0 && bloqueo==0 && abriendo==1) //Si está cerrada, no bloqueada y pulso el botón
+	 {
+		 //abierto=1;
+		 for(int i=0; i<90; i++){
+			 servo(&htim2, i);
+			 HAL_Delay(50);
+			 if(i==89)
+			 {
+				 abierto=1;
+			 	 espera_puerta = HAL_GetTick();
+			 	 abriendo=0;
+			 }
+		 }
+	 }
+	if(HAL_GetTick()-espera_puerta > 10000  &&  abierto==1 && cerrando==0) //si han pasado 10s y está abierta, la cierro y la bloqueo
+		 {
+	//		bloqueo=1;
+			espera_puerta=0;
+			cerrando = 1;
+		 }
+
+	if(abierto==1 && bloqueo==0 && cerrando==1) //Si está abierta, no bloqueada y quiero cerrarla
+		 {
+			 //abierto=1;
+			 for(int i=90; i>0; i--){
+				 servo(&htim2, i);
+				 HAL_Delay(50);
+				 if(i==1)
+				 {
+					 abierto=0;
+				 	 espera_puerta = 0;
+				 	 cerrando=0;
+				 	 bloqueo=1;
+				 }
+			 }
+		 }
+	 HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, bloqueo);
 }
 
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-if(GPIO_Pin == GPIO_PIN_0)
-{
-boton3=1;
-}
-if(GPIO_Pin == GPIO_PIN_1)
-{
-boton4=1;
-}
-if(GPIO_Pin == GPIO_PIN_15)
-{
-boton1=1;
-}
-if(GPIO_Pin == GPIO_PIN_14)
-{
-boton2=1;
-}
-if(GPIO_Pin==GPIO_PIN_3)
-{
-//if   (flag == 1) {flag = 0;}
-//else             {flag = 1;}
-}
-if(GPIO_Pin==GPIO_PIN_4)
-{
-//desactivar_alarma = 1;
-}
+	if(GPIO_Pin == GPIO_PIN_0)
+	{
+		boton3=1;
+	}
+	if(GPIO_Pin == GPIO_PIN_1)
+	{
+		boton4=1;
+	}
+	/*if(GPIO_Pin == GPIO_PIN_15)
+	{
+		boton1=1;
+	}
+	if(GPIO_Pin == GPIO_PIN_14)
+	{
+		boton2=1;
+	}
+	if(GPIO_Pin==GPIO_PIN_3)
+	{
+		//if   (bloqueo == 1) {bloqueo = 0;}
+		//else             {bloqueo = 1;}
+	}
+	if(GPIO_Pin==GPIO_PIN_4)
+	{
+		//desactivar_alarma = 1;
+	}*/
 }
 
 
@@ -273,6 +271,18 @@ void HCSR04_Read (void)
 	__HAL_TIM_ENABLE_IT(&htim1, TIM_IT_CC1);
 }
 
+void LDR(void)
+{
+	HAL_ADC_Start(&hadc1);
+	if(HAL_ADC_PollForConversion(&hadc1, 100) == HAL_OK)
+		LDR_val=HAL_ADC_GetValue(&hadc1);
+	HAL_ADC_Stop(&hadc1);
+	if(LDR_val<60)
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8,1);
+	else
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8,0);
+
+}
 /* USER CODE END 0 */
 
 /**
@@ -305,9 +315,10 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);
-  HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_4);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -329,6 +340,7 @@ int main(void)
 		HAL_GPIO_WritePin(GPIOD,GPIO_PIN_13,1);
 	}
 	garagecontrol();
+	LDR();
 
   }
   /* USER CODE END 3 */
@@ -350,14 +362,13 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 8;
-  RCC_OscInitStruct.PLL.PLLN = 50;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 4;
+  RCC_OscInitStruct.PLL.PLLN = 72;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 7;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -369,13 +380,63 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+  hadc1.Init.Resolution = ADC_RESOLUTION_8B;
+  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_3;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
 }
 
 /**
@@ -449,7 +510,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 72-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 2000;
+  htim2.Init.Period = 20000;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -472,10 +533,10 @@ static void MX_TIM2_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 500;
+  sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -503,13 +564,13 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(TRIG_ULTRASONIDOS_GPIO_Port, TRIG_ULTRASONIDOS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13|GPIO_PIN_15, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, LUZ_Pin|LED_GARAJE_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : PA0 PA1 */
   GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1;
@@ -517,12 +578,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PA2 */
-  GPIO_InitStruct.Pin = GPIO_PIN_2;
+  /*Configure GPIO pin : TRIG_ULTRASONIDOS_Pin */
+  GPIO_InitStruct.Pin = TRIG_ULTRASONIDOS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(TRIG_ULTRASONIDOS_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PD13 PD15 */
   GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_15;
@@ -531,8 +592,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PC9 */
-  GPIO_InitStruct.Pin = GPIO_PIN_9;
+  /*Configure GPIO pins : LUZ_Pin LED_GARAJE_Pin */
+  GPIO_InitStruct.Pin = LUZ_Pin|LED_GARAJE_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
