@@ -59,10 +59,31 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define BOTON_3_Pin GPIO_PIN_0
+#define BOTON_3_GPIO_Port GPIOA
+#define BOTON_3_EXTI_IRQn EXTI0_IRQn
+#define BOTON_4_Pin GPIO_PIN_1
+#define BOTON_4_GPIO_Port GPIOA
+#define BOTON_4_EXTI_IRQn EXTI1_IRQn
 #define TRIG_ULTRASONIDOS_Pin GPIO_PIN_2
 #define TRIG_ULTRASONIDOS_GPIO_Port GPIOA
+#define LDR_Pin GPIO_PIN_3
+#define LDR_GPIO_Port GPIOA
+#define BOTON_ALARMA_Pin GPIO_PIN_4
+#define BOTON_ALARMA_GPIO_Port GPIOA
+#define BOTON_ALARMA_EXTI_IRQn EXTI4_IRQn
+#define SERVO_Pin GPIO_PIN_5
+#define SERVO_GPIO_Port GPIOA
+#define ENABLE_PUENTE_H_Pin GPIO_PIN_7
+#define ENABLE_PUENTE_H_GPIO_Port GPIOA
 #define ECHO_ULTRASONIDOS_Pin GPIO_PIN_9
 #define ECHO_ULTRASONIDOS_GPIO_Port GPIOE
+#define ZUMBADOR_Pin GPIO_PIN_12
+#define ZUMBADOR_GPIO_Port GPIOD
+#define IN2_Pin GPIO_PIN_6
+#define IN2_GPIO_Port GPIOC
+#define IN1_Pin GPIO_PIN_7
+#define IN1_GPIO_Port GPIOC
 #define LUZ_Pin GPIO_PIN_8
 #define LUZ_GPIO_Port GPIOC
 #define LED_GARAJE_Pin GPIO_PIN_9
