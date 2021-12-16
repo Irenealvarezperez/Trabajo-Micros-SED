@@ -59,12 +59,12 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define BOTON_3_Pin GPIO_PIN_0
-#define BOTON_3_GPIO_Port GPIOA
-#define BOTON_3_EXTI_IRQn EXTI0_IRQn
-#define BOTON_4_Pin GPIO_PIN_1
-#define BOTON_4_GPIO_Port GPIOA
-#define BOTON_4_EXTI_IRQn EXTI1_IRQn
+#define BOTON_BLOQUEO_Pin GPIO_PIN_0
+#define BOTON_BLOQUEO_GPIO_Port GPIOA
+#define BOTON_BLOQUEO_EXTI_IRQn EXTI0_IRQn
+#define BOTON_ABRIR_PUERTA_Pin GPIO_PIN_1
+#define BOTON_ABRIR_PUERTA_GPIO_Port GPIOA
+#define BOTON_ABRIR_PUERTA_EXTI_IRQn EXTI1_IRQn
 #define TRIG_ULTRASONIDOS_Pin GPIO_PIN_2
 #define TRIG_ULTRASONIDOS_GPIO_Port GPIOA
 #define LDR_Pin GPIO_PIN_3

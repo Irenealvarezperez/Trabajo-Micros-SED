@@ -47,6 +47,9 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
+UART_HandleTypeDef huart3;
+DMA_HandleTypeDef hdma_usart3_rx;
+
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -58,6 +61,8 @@ static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_DMA_Init(void);
+static void MX_USART3_UART_Init(void);
 static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -93,7 +98,10 @@ uint32_t LDR_val;
 uint32_t tiempo_alarma=0;
 int sonando=0;
 
-int debouncer(volatile int* button_int, GPIO_TypeDef* GPIO_port, uint16_t GPIO_number){
+//variables Bluetooth
+char readBuf[1];
+
+int debouncer2(volatile int* button_int, GPIO_TypeDef* GPIO_port, uint16_t GPIO_number){
 	static uint8_t cuenta_boton=0;
 	static int cuenta=0;
 
@@ -121,6 +129,7 @@ int debouncer(volatile int* button_int, GPIO_TypeDef* GPIO_port, uint16_t GPIO_n
 	return 0;
 }
 
+
 void servo(TIM_HandleTypeDef* htim, int grados){
 	 const int MAX=20;
 	 float ms= grados/90.0f +0.5f;
@@ -132,7 +141,7 @@ void servo(TIM_HandleTypeDef* htim, int grados){
 void garagecontrol(void)  //PUERTA
 {
 
-	if((debouncer(&boton3,GPIOA,GPIO_PIN_0))==1)
+	if((debouncer2(&boton3,GPIOA,GPIO_PIN_0))==1||readBuf[0]==50)
 	{
 		  if(bloqueo==1 && abierto==0)
 		 {
@@ -142,10 +151,11 @@ void garagecontrol(void)  //PUERTA
 		 {
 			 bloqueo=1;
 		 }
+		  readBuf[0]=0;
 	}
 
 
-	if ((debouncer(&boton4,GPIOA,GPIO_PIN_1))==1)
+	if ((debouncer2(&boton4,GPIOA,GPIO_PIN_1))==1||readBuf[0]==51)
 	{
 		 if(abierto==1)
 		 {
@@ -159,12 +169,13 @@ void garagecontrol(void)  //PUERTA
 			  abriendo=1;
 
 		 }
+		 readBuf[0]=0;
 	}
 
 	 if(abierto==0 && bloqueo==0 && abriendo==1) //Si está cerrada, no bloqueada y pulso el botón
 	 {
 		 //abierto=1;
-		 for(int i=0; i<90; i++){
+	/*	 for(int i=0; i<90; i++){
 			 servo(&htim2, i);
 			 HAL_Delay(50);
 			 if(i==89)
@@ -173,7 +184,11 @@ void garagecontrol(void)  //PUERTA
 			 	 espera_puerta = HAL_GetTick();
 			 	 abriendo=0;
 			 }
-		 }
+		 }*/
+			servo(&htim2, 0);
+			 abierto=1;
+		 	 espera_puerta = HAL_GetTick();
+		 	 abriendo=0;
 	 }
 	if(HAL_GetTick()-espera_puerta > 10000  &&  abierto==1 && cerrando==0) //si han pasado 10s y está abierta, la cierro y la bloqueo
 		 {
@@ -185,7 +200,7 @@ void garagecontrol(void)  //PUERTA
 	if(abierto==1 && bloqueo==0 && cerrando==1) //Si está abierta, no bloqueada y quiero cerrarla
 		 {
 			 //abierto=1;
-			 for(int i=90; i>0; i--){
+			/* for(int i=90; i>0; i--){
 				 servo(&htim2, i);
 				 HAL_Delay(50);
 				 if(i==1)
@@ -195,7 +210,12 @@ void garagecontrol(void)  //PUERTA
 				 	 cerrando=0;
 				 	 bloqueo=1;
 				 }
-			 }
+			 }*/
+		servo(&htim2, 90);
+		 abierto=0;
+	 	 espera_puerta = 0;
+	 	 cerrando=0;
+	 	 bloqueo=1;
 		 }
 	 HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, bloqueo);
 }
@@ -315,17 +335,25 @@ void alarma(void){
 	HAL_Delay(100);
 	if(Distance<10){
 		tiempo_alarma=HAL_GetTick();
-		htim4.Instance->CCR1=zumb;
+ 		htim4.Instance->CCR1=zumb;
 		sonando=1;
 	}
 	if(sonando==1){
-		if(HAL_GetTick()-tiempo_alarma>5000||(debouncer(&boton2,GPIOA,GPIO_PIN_4))==1){
+		if(HAL_GetTick()-tiempo_alarma>5000||(debouncer2(&boton2,GPIOA,GPIO_PIN_4))==1||readBuf[0]==49){
 			htim4.Instance->CCR1=0;
 			tiempo_alarma=0;
 			sonando=0;
+			readBuf[0]=0;
 		}
 	}
 
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+ /* Se recibe el caracter y se pide el siguiente*/
+// CDC_Transmit_FS(readBuf, 1);
+ if(huart->Instance==huart3.Instance)
+ HAL_UART_Receive_IT(&huart3, (uint8_t*)readBuf, 1);
 }
 /* USER CODE END 0 */
 
@@ -361,12 +389,15 @@ int main(void)
   MX_TIM2_Init();
   MX_ADC1_Init();
   MX_TIM3_Init();
+  MX_DMA_Init();
+  MX_USART3_UART_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_1);
+  HAL_UART_Receive_IT(&huart3, (uint8_t*)readBuf, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -708,6 +739,55 @@ static void MX_TIM4_Init(void)
 }
 
 /**
+  * @brief USART3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART3_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART3_Init 0 */
+
+  /* USER CODE END USART3_Init 0 */
+
+  /* USER CODE BEGIN USART3_Init 1 */
+
+  /* USER CODE END USART3_Init 1 */
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 9600;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART3_Init 2 */
+
+  /* USER CODE END USART3_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -720,6 +800,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOE_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
@@ -732,8 +813,8 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, IN2_Pin|IN1_Pin|LUZ_Pin|LED_GARAJE_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : BOTON_3_Pin BOTON_4_Pin BOTON_ALARMA_Pin */
-  GPIO_InitStruct.Pin = BOTON_3_Pin|BOTON_4_Pin|BOTON_ALARMA_Pin;
+  /*Configure GPIO pins : BOTON_BLOQUEO_Pin BOTON_ABRIR_PUERTA_Pin BOTON_ALARMA_Pin */
+  GPIO_InitStruct.Pin = BOTON_BLOQUEO_Pin|BOTON_ABRIR_PUERTA_Pin|BOTON_ALARMA_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
