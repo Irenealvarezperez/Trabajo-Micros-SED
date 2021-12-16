@@ -46,6 +46,7 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
+TIM_HandleTypeDef htim9;
 
 UART_HandleTypeDef huart3;
 DMA_HandleTypeDef hdma_usart3_rx;
@@ -64,6 +65,7 @@ static void MX_TIM3_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_TIM4_Init(void);
+static void MX_TIM9_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -100,6 +102,10 @@ int sonando=0;
 
 //variables Bluetooth
 char readBuf[1];
+
+//variables persiana
+int subiendo=0, subida=0, bajando=0;
+uint32_t tiempo_motor, tiempo_persiana=5000;
 
 int debouncer2(volatile int* button_int, GPIO_TypeDef* GPIO_port, uint16_t GPIO_number){
 	static uint8_t cuenta_boton=0;
@@ -314,22 +320,70 @@ void LDR(void)
 
 }
 
-void avanceMotor(int s)
+void subePersiana(int s)
 {
 	//TIM9->CCR1=s;
-	__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, s);
+	__HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, s);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6,GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
+}
+
+void bajaPersiana(int s)
+{
+	//TIM9->CCR1=s;
+	__HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, s);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_SET);
 }
 
 void pareMotor()
 {
 	//TIM9->CCR1=s;
-	__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
+	__HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, 0);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6,GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
 }
 
+//Modificando el tiempo_persiana damos mas vueltas al motor
+//Actualmente con 5 s da 3 vueltas
+//Actualizar en función de la longitud de la persiana
+void persianas(){
+
+	if(subida==0){
+		if(subiendo==0){
+			if(readBuf[0]==52){
+				subePersiana(5000);
+				tiempo_motor=HAL_GetTick();
+				subiendo=1;
+			}
+		}
+		else if(subiendo==1){
+			if(HAL_GetTick()-tiempo_motor>tiempo_persiana){
+			pareMotor();
+			subiendo=0;
+			subida=1;
+			readBuf[0]=0;
+			}
+		}
+	}
+	else if(subida==1){
+		if(bajando==0){
+			if(readBuf[0]==52||LDR_val<60){  //las persianas se bajan al pedirlo desde el movil o al bajar la
+				bajaPersiana(5000);			// luminosidad (hacerse de noche)
+				tiempo_motor=HAL_GetTick();
+				bajando=1;
+			}
+		}
+		else if(bajando==1){
+			if(HAL_GetTick()-tiempo_motor>tiempo_persiana){
+			pareMotor();
+			bajando=0;
+			subida=0;
+			readBuf[0]=0;
+			}
+		}
+	}
+}
 void alarma(void){
 	HCSR04_Read();
 	HAL_Delay(100);
@@ -392,10 +446,11 @@ int main(void)
   MX_DMA_Init();
   MX_USART3_UART_Init();
   MX_TIM4_Init();
+  MX_TIM9_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim9, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_1);
   HAL_UART_Receive_IT(&huart3, (uint8_t*)readBuf, 1);
   /* USER CODE END 2 */
@@ -411,19 +466,7 @@ int main(void)
 	alarma();
 	garagecontrol();
 	LDR();
-
-	//Arreglar el control del motor de continua:
-/*	  avanceMotor(1000);
-	  HAL_Delay(1000);
-
-	  pareMotor();
-	  HAL_Delay(1000);
-
-	  avanceMotor(2000);
-	  HAL_Delay(1000);
-
-	  pareMotor();
-	  HAL_Delay(1000);*/
+	persianas();
 
   }
   /* USER CODE END 3 */
@@ -739,6 +782,48 @@ static void MX_TIM4_Init(void)
 }
 
 /**
+  * @brief TIM9 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM9_Init(void)
+{
+
+  /* USER CODE BEGIN TIM9_Init 0 */
+
+  /* USER CODE END TIM9_Init 0 */
+
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM9_Init 1 */
+
+  /* USER CODE END TIM9_Init 1 */
+  htim9.Instance = TIM9;
+  htim9.Init.Prescaler = 72-1;
+  htim9.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim9.Init.Period = 2000;
+  htim9.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim9.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_PWM_Init(&htim9) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim9, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM9_Init 2 */
+
+  /* USER CODE END TIM9_Init 2 */
+  HAL_TIM_MspPostInit(&htim9);
+
+}
+
+/**
   * @brief USART3 Initialization Function
   * @param None
   * @retval None
@@ -797,9 +882,9 @@ static void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();

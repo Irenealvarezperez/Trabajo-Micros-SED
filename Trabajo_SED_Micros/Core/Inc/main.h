@@ -59,6 +59,8 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define ENABLE_PUENTE_H_Pin GPIO_PIN_5
+#define ENABLE_PUENTE_H_GPIO_Port GPIOE
 #define BOTON_BLOQUEO_Pin GPIO_PIN_0
 #define BOTON_BLOQUEO_GPIO_Port GPIOA
 #define BOTON_BLOQUEO_EXTI_IRQn EXTI0_IRQn
@@ -74,8 +76,6 @@ void Error_Handler(void);
 #define BOTON_ALARMA_EXTI_IRQn EXTI4_IRQn
 #define SERVO_Pin GPIO_PIN_5
 #define SERVO_GPIO_Port GPIOA
-#define ENABLE_PUENTE_H_Pin GPIO_PIN_7
-#define ENABLE_PUENTE_H_GPIO_Port GPIOA
 #define ECHO_ULTRASONIDOS_Pin GPIO_PIN_9
 #define ECHO_ULTRASONIDOS_GPIO_Port GPIOE
 #define ZUMBADOR_Pin GPIO_PIN_12
