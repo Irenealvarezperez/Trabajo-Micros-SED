@@ -438,20 +438,20 @@ void pararMovimiento()
 
 void ventilador(){
 
-	if(readBuf[0]==52||sensorTemp_val<20){//el ventilador da calor si se pide desde el movil o al subir la temperatura
+	if(readBuf[0]==53||sensorTemp_val<20){//el ventilador da calor si se pide desde el movil o al subir la temperatura
 				movimientoCalor(5000);   // por debajo de 20 ºC
 				//tiempo_motor_ventilador=HAL_GetTick();
 				dando_calor=1;
 
 		}
 
-	else if(readBuf[0]==52||sensorTemp_val>25){  //el ventilador da frio si se pide desde el movil o al subir la temperatura
+	else if(readBuf[0]==53||sensorTemp_val>25){  //el ventilador da frio si se pide desde el movil o al subir la temperatura
 				movimientoFrio(5000);			// por encima de 25 ºC
 				//tiempo_motor_ventilador=HAL_GetTick();
 				dando_frio=1;
 
 		}
-	else if (readBuf[0]==52){ //parar motor desde aplicación
+	else if (readBuf[0]==53){ //parar motor desde aplicación
 		pararMovimiento();
 	}
 
@@ -544,6 +544,7 @@ int main(void)
 	garagecontrol();
 	LDR();
 	persianas();
+	temperatura();
 	ventilador();
 
   }
