@@ -61,6 +61,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define ENABLE_PUENTE_H_Pin GPIO_PIN_5
 #define ENABLE_PUENTE_H_GPIO_Port GPIOE
+#define Sensor_temperatura_Pin GPIO_PIN_1
+#define Sensor_temperatura_GPIO_Port GPIOC
 #define BOTON_BLOQUEO_Pin GPIO_PIN_0
 #define BOTON_BLOQUEO_GPIO_Port GPIOA
 #define BOTON_BLOQUEO_EXTI_IRQn EXTI0_IRQn
@@ -74,12 +76,12 @@ void Error_Handler(void);
 #define BOTON_ALARMA_Pin GPIO_PIN_4
 #define BOTON_ALARMA_GPIO_Port GPIOA
 #define BOTON_ALARMA_EXTI_IRQn EXTI4_IRQn
-#define SERVO_Pin GPIO_PIN_5
-#define SERVO_GPIO_Port GPIOA
 #define ECHO_ULTRASONIDOS_Pin GPIO_PIN_9
 #define ECHO_ULTRASONIDOS_GPIO_Port GPIOE
 #define ZUMBADOR_Pin GPIO_PIN_12
 #define ZUMBADOR_GPIO_Port GPIOD
+#define LED_sensorTemp_Pin GPIO_PIN_14
+#define LED_sensorTemp_GPIO_Port GPIOD
 #define IN2_Pin GPIO_PIN_6
 #define IN2_GPIO_Port GPIOC
 #define IN1_Pin GPIO_PIN_7
@@ -88,6 +90,12 @@ void Error_Handler(void);
 #define LUZ_GPIO_Port GPIOC
 #define LED_GARAJE_Pin GPIO_PIN_9
 #define LED_GARAJE_GPIO_Port GPIOC
+#define IN2_ventilador_Pin GPIO_PIN_8
+#define IN2_ventilador_GPIO_Port GPIOA
+#define IN1_ventilador_Pin GPIO_PIN_9
+#define IN1_ventilador_GPIO_Port GPIOA
+#define SERVO_Pin GPIO_PIN_15
+#define SERVO_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
