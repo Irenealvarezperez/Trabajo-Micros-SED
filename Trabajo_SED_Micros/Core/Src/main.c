@@ -77,18 +77,21 @@ static void MX_TIM10_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-void delay (uint16_t time)
+void delay (uint16_t time) //función para hacer el delay en el ultrasonidos. Cambiar por hilos????
 {
 	__HAL_TIM_SET_COUNTER(&htim1, 0);
 	while (__HAL_TIM_GET_COUNTER (&htim1) < time);
 }
 
+//Variables alarma
 uint32_t IC_Val1 = 0;
 uint32_t IC_Val2 = 0;
 uint32_t Difference = 0;
 uint8_t Is_First_Captured = 0;  // is the first value captured ?
 uint8_t Distance  = 0;
 uint32_t zumb=200;
+uint32_t tiempo_alarma=0;
+int sonando=0;
 
 //Variables puerta
 uint32_t espera_puerta;
@@ -98,11 +101,6 @@ volatile int boton1=0,boton2=0,boton3=0,boton4=0;
 
 //variables LDR
 uint32_t LDR_val;
-
-
-//variables alarma
-uint32_t tiempo_alarma=0;
-int sonando=0;
 
 //variables Bluetooth
 char readBuf[1];
@@ -159,97 +157,74 @@ void servo(TIM_HandleTypeDef* htim, int grados){
 void garagecontrol(void)  //PUERTA
 {
 
-	if((debouncer2(&boton3,GPIOA,GPIO_PIN_0))==1||readBuf[0]==50)
+	if((debouncer2(&boton3,GPIOA,GPIO_PIN_0))==1||readBuf[0]==50) //si pulsamos el botón de desbloqueo o mandamos la orden desde la aplicación
 	{
-		  if(bloqueo==1 && abierto==0)
+		  if(bloqueo==1 && abierto==0) //en caso de que la puerta este bloqueada y cerrada
 		 {
-			 bloqueo=0;
+			 bloqueo=0; //se desbloquea
 		   }
-		 else if (bloqueo==0 && abierto==0)
+		 else if (bloqueo==0 && abierto==0) //si esta cerrada y desbloqueada
 		 {
-			 bloqueo=1;
+			 bloqueo=1; //se bloquea
 		 }
-		  readBuf[0]=0;
+		  readBuf[0]=0; //pongo a cero la variable que recibe el valor del bluetooth
 	}
 
 
-	if ((debouncer2(&boton4,GPIOA,GPIO_PIN_1))==1||readBuf[0]==51)
+	if ((debouncer2(&boton4,GPIOA,GPIO_PIN_1))==1||readBuf[0]==51) //si pulso el botón de apertura o mando la orden desde la app
 	{
-		 if(abierto==1)
+		 if(abierto==1) //si está abierta
 		 {
 			 //abierto=0;
-			 espera_puerta=0;
-			 cerrando=1;
+			 espera_puerta=0;//pongo el tiempo de espera a 0
+			 cerrando=1; //activo el flag que indica que voy a cerrar la puerta
 		 }
 		 else
 		 {
 			  //abierto=1;
-			  abriendo=1;
+			  abriendo=1; //activo el flag que indica que voy a abrir la puerta
 
 		 }
-		 readBuf[0]=0;
+		 readBuf[0]=0; //pongo a cero la variable que recibe el valor del bluetooth
 	}
 
-	 if(abierto==0 && bloqueo==0 && abriendo==1) //Si está cerrada, no bloqueada y pulso el botón
+	 if(abierto==0 && bloqueo==0 && abriendo==1) //Si está cerrada, no bloqueada y el flag de apertura activado
 	 {
-		 //abierto=1;
-	/*	 for(int i=0; i<90; i++){
-			 servo(&htim2, i);
-			 HAL_Delay(50);
-			 if(i==89)
-			 {
-				 abierto=1;
-			 	 espera_puerta = HAL_GetTick();
-			 	 abriendo=0;
-			 }
-		 }*/
-			servo(&htim2, 0);
-			 abierto=1;
-		 	 espera_puerta = HAL_GetTick();
-		 	 abriendo=0;
+			 servo(&htim2, 0); //pongo el servo a cero grados(posición de la puerta abierta)
+			 abierto=1; //indico que ya está abierta la puerta
+		 	 espera_puerta = HAL_GetTick(); //tomo el tiempo actual
+		 	 abriendo=0; //pongo el flag de apertura a 0
 	 }
 	if(HAL_GetTick()-espera_puerta > 10000  &&  abierto==1 && cerrando==0) //si han pasado 10s y está abierta, la cierro y la bloqueo
 		 {
 	//		bloqueo=1;
-			espera_puerta=0;
-			cerrando = 1;
+			espera_puerta=0; //reseteo el tiempo de espera
+			cerrando = 1; //indico que quiero cerrar la puerta
 		 }
 
 	if(abierto==1 && bloqueo==0 && cerrando==1) //Si está abierta, no bloqueada y quiero cerrarla
-		 {
-			 //abierto=1;
-			/* for(int i=90; i>0; i--){
-				 servo(&htim2, i);
-				 HAL_Delay(50);
-				 if(i==1)
-				 {
-					 abierto=0;
-				 	 espera_puerta = 0;
-				 	 cerrando=0;
-				 	 bloqueo=1;
-				 }
-			 }*/
-		servo(&htim2, 90);
-		 abierto=0;
-	 	 espera_puerta = 0;
-	 	 cerrando=0;
-	 	 bloqueo=1;
-		 }
-	 HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, bloqueo);
+	{
+		servo(&htim2, 90);//ordeno al servo la posición de la puerta cerrada
+		 abierto=0; //indico que está cerrada
+	 	 espera_puerta = 0; //reseteo el tiempo
+	 	 cerrando=0; //pongo el flag de ciere a 0
+	 	 bloqueo=1; //bloqueo la puerta
+	}
+	 HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, bloqueo); //control de la luz. ENCENDIDA->Bloqueada
 }
 
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) //Callback de los botone
 {
-	if(GPIO_Pin == GPIO_PIN_0)
+	if(GPIO_Pin == GPIO_PIN_0)//Botón de bloqueo
 	{
 		boton3=1;
 	}
-	if(GPIO_Pin == GPIO_PIN_1)
+	if(GPIO_Pin == GPIO_PIN_1)//Botón de apertura de la puerta
 	{
 		boton4=1;
 	}
-	if(GPIO_Pin == GPIO_PIN_4)
+	if(GPIO_Pin == GPIO_PIN_4)//Bloqueo de desactivación de la alarma
 	{
 		boton2=1;
 	}
@@ -272,7 +247,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 
 
-void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) //Callback para la medición del ultrasonidos
 {
 	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)  // if the interrupt source is channel1
 	{
@@ -310,57 +285,58 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 	}
 }
 
-void HCSR04_Read (void)
+void HCSR04_Read (void) //Función de lectura del ultrasonidos
 {
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET); // pull the TRIG pin HIGH
-	delay(10);  // wait for 10 us
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);// pull the TRIG pin low
+	//enviamos un pulso en el pin TRIG
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET); // ponemos el pin TRIG on
+	delay(10);  // esperamos 10 us
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);// ponemos el pin TRIG off
 
-	__HAL_TIM_ENABLE_IT(&htim1, TIM_IT_CC1);
+	__HAL_TIM_ENABLE_IT(&htim1, TIM_IT_CC1); //Habilitamos las interrupciones para esperar a la recepción
 }
 
-void LDR(void)
+void LDR(void) //función de lectura del LDR
 {
-	HAL_ADC_Start(&hadc1);
+	HAL_ADC_Start(&hadc1); //iniciamos el convertidor ADC
 	if(HAL_ADC_PollForConversion(&hadc1, 100) == HAL_OK)
-		LDR_val=HAL_ADC_GetValue(&hadc1);
-	HAL_ADC_Stop(&hadc1);
-	if(LDR_val<60)
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8,1);
+		LDR_val=HAL_ADC_GetValue(&hadc1); //guardamos el valor medido en LDR_val
+	HAL_ADC_Stop(&hadc1); //paramos la conversión
+	if(LDR_val<60) //en caso de que el valor sea menor a 60 (luz ambiente)
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8,1); //Encendemos la luz
 	else
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8,0);
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8,0); //Apagamos la luz
 
 }
-void temperatura(void)
+void temperatura(void) //Función para leer la temperatura
 {
 	HAL_ADC_Start(&hadc2);
 	if(HAL_ADC_PollForConversion(&hadc2, 100) == HAL_OK)
 		sensorTemp_val=HAL_ADC_GetValue(&hadc2);
 	HAL_ADC_Stop(&hadc2);
-	if(sensorTemp_val<10)
+	if(sensorTemp_val<10) //si la temperatura es menor de 10 grados
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14,1);
 	else
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14,0);
 
 }
 
-void subePersiana(int s)
+void subePersiana(int s) //Función de subida de la persiana
 {
 	//TIM9->CCR1=s;
 	__HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, s);
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6,GPIO_PIN_SET); //Giro horario
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
 }
 
-void bajaPersiana(int s)
+void bajaPersiana(int s) //Función para bajar la persiana
 {
 	//TIM9->CCR1=s;
 	__HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, s);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6,GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_SET); //Giro antihorario
 }
 
-void pareMotor()
+void pareMotor() //Función que para el motor
 {
 	//TIM9->CCR1=s;
 	__HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, 0);
@@ -373,37 +349,37 @@ void pareMotor()
 //Actualizar en función de la longitud de la persiana
 
 
-void persianas(){
+void persianas(){ //Función del control completo de la persiana
 
-	if(subida==0){
-		if(subiendo==0){
-			if(readBuf[0]==52){
-				subePersiana(5000);
-				tiempo_motor=HAL_GetTick();
-				subiendo=1;
+	if(subida==0){ //Si está bajada
+		if(subiendo==0){ //Y no se está subiendo
+			if(readBuf[0]==52){ //Si detecta que pido desde la aplicación que suba
+				subePersiana(5000); //subo la persiana
+				tiempo_motor=HAL_GetTick(); //cojo el tiempo
+				subiendo=1; //pongo el flag de subiendo a 1
 			}
 		}
 		else if(subiendo==1){
-			if(HAL_GetTick()-tiempo_motor>tiempo_persiana){
-			pareMotor();
-			subiendo=0;
-			subida=1;
-			readBuf[0]=0;
+			if(HAL_GetTick()-tiempo_motor>tiempo_persiana){ //si ya ha llegado arriba la persiana
+			pareMotor(); //paro el motor
+			subiendo=0; //pongo la flag de subiendo a 0
+			subida=1;   //declaro que ya esta subida
+			readBuf[0]=0; //reseteo la variable de recepción del bluetooth
 			}
 		}
 	}
-	else if(subida==1){
-		if(bajando==0){
+	else if(subida==1){ //si esta subida
+		if(bajando==0){ //no se está bajando aun
 			if(readBuf[0]==52||LDR_val<60){  //las persianas se bajan al pedirlo desde el movil o al bajar la
 				bajaPersiana(5000);			// luminosidad (hacerse de noche)
 				tiempo_motor=HAL_GetTick();
-				bajando=1;
+				bajando=1; //activo el flag de bajando
 			}
 		}
-		else if(bajando==1){
-			if(HAL_GetTick()-tiempo_motor>tiempo_persiana){
-			pareMotor();
-			bajando=0;
+		else if(bajando==1){ //si está bajando
+			if(HAL_GetTick()-tiempo_motor>tiempo_persiana){ //y ha acabado de bajar
+			pareMotor(); //paro el motor
+			bajando=0; //reseteo flags
 			subida=0;
 			readBuf[0]=0;
 			}
@@ -458,18 +434,18 @@ void ventilador(){
 }
 
 
-void alarma(void){
-	HCSR04_Read();
+void alarma(void){ //Función completa de la alarma
+	HCSR04_Read(); //Leemos el valor del ultrasonidos
 	HAL_Delay(100);
-	if(Distance<10){
-		tiempo_alarma=HAL_GetTick();
- 		htim4.Instance->CCR1=zumb;
+	if(Distance<10){ //Si la distancia es menor de 10 cm
+		tiempo_alarma=HAL_GetTick(); //tomamos el tiempo en ese instante
+ 		htim4.Instance->CCR1=zumb; //encendemos el zumbador
 		sonando=1;
 	}
-	if(sonando==1){
-		if(HAL_GetTick()-tiempo_alarma>5000||(debouncer2(&boton2,GPIOA,GPIO_PIN_4))==1||readBuf[0]==49){
-			htim4.Instance->CCR1=0;
-			tiempo_alarma=0;
+	if(sonando==1){ //si está sonando
+		if(HAL_GetTick()-tiempo_alarma>5000||(debouncer2(&boton2,GPIOA,GPIO_PIN_4))==1||readBuf[0]==49){ //si pasan 5 s, pulso el botón, o lo pido desde la app la desactivo
+			htim4.Instance->CCR1=0; //paro el zumbador
+			tiempo_alarma=0; //reseteo tiempos y flags
 			sonando=0;
 			readBuf[0]=0;
 		}
@@ -477,7 +453,7 @@ void alarma(void){
 
 }
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) { //callback para el bluetooth
  /* Se recibe el caracter y se pide el siguiente*/
 // CDC_Transmit_FS(readBuf, 1);
  if(huart->Instance==huart3.Instance)
