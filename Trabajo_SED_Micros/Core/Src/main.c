@@ -147,14 +147,14 @@ int debouncer2(volatile int* button_int, GPIO_TypeDef* GPIO_port, uint16_t GPIO_
 
 
 void servo(TIM_HandleTypeDef* htim, int grados){
-	 const int MAX=20;
+	 const int MAX=20; //comprobar qe pasa si cambio esto por 13.9 ms. Frecuencia a 72 Hz
 	 float ms= grados/90.0f +0.5f;
 	 float ciclo = ms/(float)MAX;
 	 mov =htim->Instance->ARR*ciclo;
 	 htim->Instance->CCR1 = mov;
 }
 
-void garagecontrol(void)  //PUERTA
+void puerta(void)  //PUERTA
 {
 
 	if((debouncer2(&boton3,GPIOA,GPIO_PIN_0))==1||readBuf[0]==50) //si pulsamos el botón de desbloqueo o mandamos la orden desde la aplicación
@@ -517,7 +517,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
 	alarma();
-	garagecontrol();
+	puerta();
 	LDR();
 	persianas();
 	temperatura();
