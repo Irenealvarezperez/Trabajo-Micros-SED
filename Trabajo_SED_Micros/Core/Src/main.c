@@ -313,7 +313,7 @@ void temperatura(void) //Función para leer la temperatura
 	if(HAL_ADC_PollForConversion(&hadc2, 100) == HAL_OK)
 		sensorTemp_val=HAL_ADC_GetValue(&hadc2);
 	HAL_ADC_Stop(&hadc2);
-	if(sensorTemp_val<10) //si la temperatura es menor de 10 grados
+	if(sensorTemp_val>10) //si la temperatura es mayor de 10 grados
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14,1);
 	else
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14,0);
