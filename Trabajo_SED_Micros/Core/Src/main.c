@@ -421,13 +421,13 @@ void ventilador(){
 
 		}
 
-	else if(readBuf[0]==53||sensorTemp_val>25){  //el ventilador da frio si se pide desde el movil o al subir la temperatura
+	else if(readBuf[0]==54||sensorTemp_val>25){  //el ventilador da frio si se pide desde el movil o al subir la temperatura
 				movimientoFrio(5000);			// por encima de 25 ºC
 				//tiempo_motor_ventilador=HAL_GetTick();
 				dando_frio=1;
 
 		}
-	else if (readBuf[0]==53){ //parar motor desde aplicación
+	else if (readBuf[0]==55){ //parar motor desde aplicación
 		pararMovimiento();
 	}
 
