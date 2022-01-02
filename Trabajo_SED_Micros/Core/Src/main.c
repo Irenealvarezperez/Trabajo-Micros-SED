@@ -18,8 +18,10 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+//#include "main.h"
 #include "Funciones.h"
+//#include "cmsis_os.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -40,8 +42,54 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+ADC_HandleTypeDef hadc2;
 
+TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim4;
+TIM_HandleTypeDef htim9;
+TIM_HandleTypeDef htim10;
 
+UART_HandleTypeDef huart3;
+DMA_HandleTypeDef hdma_usart3_rx;
+
+/* Definitions for Alarma */
+osThreadId_t AlarmaHandle;
+const osThreadAttr_t Alarma_attributes = {
+  .name = "Alarma",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for Puerta */
+osThreadId_t PuertaHandle;
+const osThreadAttr_t Puerta_attributes = {
+  .name = "Puerta",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for Ventilador */
+osThreadId_t VentiladorHandle;
+const osThreadAttr_t Ventilador_attributes = {
+  .name = "Ventilador",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for Persiana */
+osThreadId_t PersianaHandle;
+const osThreadAttr_t Persiana_attributes = {
+  .name = "Persiana",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for LDR */
+osThreadId_t LDRHandle;
+const osThreadAttr_t LDR_attributes = {
+  .name = "LDR",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -59,6 +107,12 @@ static void MX_TIM4_Init(void);
 static void MX_TIM9_Init(void);
 static void MX_ADC2_Init(void);
 static void MX_TIM10_Init(void);
+void StartAlarma(void *argument);
+void StartPuerta(void *argument);
+void StartVentilador(void *argument);
+void StartPersiana(void *argument);
+void StartLDR(void *argument);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -116,6 +170,53 @@ int main(void)
   HAL_UART_Receive_IT(&huart3, (uint8_t*)readBuf, 1);
   /* USER CODE END 2 */
 
+  /* Init scheduler */
+  osKernelInitialize();
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of Alarma */
+  AlarmaHandle = osThreadNew(StartAlarma, NULL, &Alarma_attributes);
+
+  /* creation of Puerta */
+  PuertaHandle = osThreadNew(StartPuerta, NULL, &Puerta_attributes);
+
+  /* creation of Ventilador */
+  VentiladorHandle = osThreadNew(StartVentilador, NULL, &Ventilador_attributes);
+
+  /* creation of Persiana */
+  PersianaHandle = osThreadNew(StartPersiana, NULL, &Persiana_attributes);
+
+  /* creation of LDR */
+  LDRHandle = osThreadNew(StartLDR, NULL, &LDR_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -124,12 +225,12 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-	alarma();
-	puerta();
-	LDR();
-	persianas();
-	temperatura();
-	ventilador();
+	//alarma();
+	//puerta();
+	//LDR();
+	//persianas();
+	//temperatura();
+	//ventilador();
 
   }
   /* USER CODE END 3 */
@@ -626,7 +727,7 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA1_Stream1_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
 
 }
@@ -685,13 +786,13 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
 }
@@ -699,6 +800,123 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartAlarma */
+/**
+  * @brief  Function implementing the Alarma thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartAlarma */
+void StartAlarma(void *argument)
+{
+  /* USER CODE BEGIN 5 */
+  /* Infinite loop */
+  for(;;)
+  {
+	  alarma();
+	  osDelay(1);
+  }
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartPuerta */
+/**
+* @brief Function implementing the Puerta thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartPuerta */
+void StartPuerta(void *argument)
+{
+  /* USER CODE BEGIN StartPuerta */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+	puerta();
+  }
+  /* USER CODE END StartPuerta */
+}
+
+/* USER CODE BEGIN Header_StartVentilador */
+/**
+* @brief Function implementing the Ventilador thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartVentilador */
+void StartVentilador(void *argument)
+{
+  /* USER CODE BEGIN StartVentilador */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+    ventilador();
+    temperatura();
+  }
+  /* USER CODE END StartVentilador */
+}
+
+/* USER CODE BEGIN Header_StartPersiana */
+/**
+* @brief Function implementing the Persiana thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartPersiana */
+void StartPersiana(void *argument)
+{
+  /* USER CODE BEGIN StartPersiana */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+    persianas();
+  }
+  /* USER CODE END StartPersiana */
+}
+
+/* USER CODE BEGIN Header_StartLDR */
+/**
+* @brief Function implementing the LDR thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartLDR */
+void StartLDR(void *argument)
+{
+  /* USER CODE BEGIN StartLDR */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+    LDR();
+  }
+  /* USER CODE END StartLDR */
+}
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM6 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM6) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.

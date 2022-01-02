@@ -1,4 +1,5 @@
 #include "main.h"
+#include "cmsis_os.h"
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
@@ -129,12 +130,13 @@ void puerta(void)  //PUERTA
 	 {
 			 servo(&htim2, 0); //pongo el servo a cero grados(posición de la puerta abierta)
 			 abierto=1; //indico que ya está abierta la puerta
-		 	 espera_puerta = HAL_GetTick(); //tomo el tiempo actual
+		 	 //espera_puerta = HAL_GetTick(); //tomo el tiempo actual
 		 	 abriendo=0; //pongo el flag de apertura a 0
 	 }
-	if(HAL_GetTick()-espera_puerta > 10000  &&  abierto==1 && cerrando==0) //si han pasado 10s y está abierta, la cierro y la bloqueo
+	if(abierto==1 && cerrando==0) //si han pasado 10s y está abierta, la cierro y la bloqueo
 		 {
 	//		bloqueo=1;
+			osDelay(10000);
 			espera_puerta=0; //reseteo el tiempo de espera
 			cerrando = 1; //indico que quiero cerrar la puerta
 		 }
@@ -292,17 +294,18 @@ void persianas(){ //Función del control completo de la persiana
 		if(subiendo==0){ //Y no se está subiendo
 			if(readBuf[0]==52){ //Si detecta que pido desde la aplicación que suba
 				subePersiana(5000); //subo la persiana
-				tiempo_motor=HAL_GetTick(); //cojo el tiempo
+				//tiempo_motor=HAL_GetTick(); //cojo el tiempo
 				subiendo=1; //pongo el flag de subiendo a 1
 			}
 		}
 		else if(subiendo==1){
-			if(HAL_GetTick()-tiempo_motor>tiempo_persiana){ //si ya ha llegado arriba la persiana
+			//if(HAL_GetTick()-tiempo_motor>tiempo_persiana){ //si ya ha llegado arriba la persiana
+			osDelay(5000);
 			pareMotor(); //paro el motor
 			subiendo=0; //pongo la flag de subiendo a 0
 			subida=1;   //declaro que ya esta subida
 			readBuf[0]=0; //reseteo la variable de recepción del bluetooth
-			}
+			//}
 		}
 	}
 	else if(subida==1){ //si esta subida
@@ -314,12 +317,13 @@ void persianas(){ //Función del control completo de la persiana
 			}
 		}
 		else if(bajando==1){ //si está bajando
-			if(HAL_GetTick()-tiempo_motor>tiempo_persiana){ //y ha acabado de bajar
+			//if(HAL_GetTick()-tiempo_motor>tiempo_persiana){ //y ha acabado de bajar
+			osDelay(5000);
 			pareMotor(); //paro el motor
 			bajando=0; //reseteo flags
 			subida=0;
 			readBuf[0]=0;
-			}
+			//}
 		}
 	}
 }
@@ -373,7 +377,7 @@ void ventilador(){
 
 void alarma(void){ //Función completa de la alarma
 	HCSR04_Read(); //Leemos el valor del ultrasonidos
-	HAL_Delay(100);
+	osDelay(100);
 	if(Distance<10){ //Si la distancia es menor de 10 cm
 		tiempo_alarma=HAL_GetTick(); //tomamos el tiempo en ese instante
  		htim4.Instance->CCR1=zumb; //encendemos el zumbador
