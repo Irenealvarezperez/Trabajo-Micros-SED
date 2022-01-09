@@ -222,6 +222,12 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) //Callback para la medi
 	}
 }
 
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
+	if (hadc->Instance==ADC1)
+		LDR_val=HAL_ADC_GetValue(&hadc1); //guardamos el valor medido en LDR_val
+	if (hadc->Instance==ADC2)
+		sensorTemp_val=HAL_ADC_GetValue(&hadc2);
+}
 void HCSR04_Read (void) //Función de lectura del ultrasonidos
 {
 	//enviamos un pulso en el pin TRIG
@@ -234,10 +240,10 @@ void HCSR04_Read (void) //Función de lectura del ultrasonidos
 
 void LDR(void) //función de lectura del LDR
 {
-	HAL_ADC_Start(&hadc1); //iniciamos el convertidor ADC
+	/*HAL_ADC_Start(&hadc1); //iniciamos el convertidor ADC
 	if(HAL_ADC_PollForConversion(&hadc1, 100) == HAL_OK)
 		LDR_val=HAL_ADC_GetValue(&hadc1); //guardamos el valor medido en LDR_val
-	HAL_ADC_Stop(&hadc1); //paramos la conversión
+	HAL_ADC_Stop(&hadc1); //paramos la conversión*/
 	if(LDR_val<60) //en caso de que el valor sea menor a 60 (luz ambiente)
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8,1); //Encendemos la luz
 	else
@@ -246,10 +252,10 @@ void LDR(void) //función de lectura del LDR
 }
 void temperatura(void) //Función para leer la temperatura
 {
-	HAL_ADC_Start(&hadc2);
+	/*HAL_ADC_Start(&hadc2);
 	if(HAL_ADC_PollForConversion(&hadc2, 100) == HAL_OK)
 		sensorTemp_val=HAL_ADC_GetValue(&hadc2);
-	HAL_ADC_Stop(&hadc2);
+	HAL_ADC_Stop(&hadc2);*/
 	if(sensorTemp_val<10) //si la temperatura es menor de 10 grados
 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14,1);
 	else
