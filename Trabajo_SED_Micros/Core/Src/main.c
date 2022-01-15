@@ -106,7 +106,7 @@ uint32_t LDR_val;
 char readBuf[1];
 
 //variables persiana
-int subiendo=0, subida=0, bajando=0;
+int subiendo=0, bajada=0, bajando=0;
 uint32_t tiempo_motor, tiempo_persiana=5000;
 
 //variables ventilador
@@ -190,7 +190,7 @@ void puerta(void)  //PUERTA
 
 	 if(abierto==0 && bloqueo==0 && abriendo==1) //Si está cerrada, no bloqueada y el flag de apertura activado
 	 {
-			 servo(&htim2, 0); //pongo el servo a cero grados(posición de la puerta abierta)
+			 servo(&htim2, 180); //pongo el servo a cero grados(posición de la puerta abierta)
 			 abierto=1; //indico que ya está abierta la puerta
 		 	 espera_puerta = HAL_GetTick(); //tomo el tiempo actual
 		 	 abriendo=0; //pongo el flag de apertura a 0
@@ -204,7 +204,7 @@ void puerta(void)  //PUERTA
 
 	if(abierto==1 && bloqueo==0 && cerrando==1) //Si está abierta, no bloqueada y quiero cerrarla
 	{
-		servo(&htim2, 90);//ordeno al servo la posición de la puerta cerrada
+		servo(&htim2, 0);//ordeno al servo la posición de la puerta cerrada
 		 abierto=0; //indico que está cerrada
 	 	 espera_puerta = 0; //reseteo el tiempo
 	 	 cerrando=0; //pongo el flag de ciere a 0
@@ -320,7 +320,7 @@ void temperatura(void) //Función para leer la temperatura
 
 }
 
-void subePersiana(int s) //Función de subida de la persiana
+void subePersiana(int s) //Función de bajada de la persiana
 {
 	//TIM9->CCR1=s;
 	__HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, s);
@@ -351,9 +351,9 @@ void pareMotor() //Función que para el motor
 
 void persianas(){ //Función del control completo de la persiana
 
-	if(subida==0){ //Si está bajada
+	if(bajada==0){ //Si está bajada
 		if(subiendo==0){ //Y no se está subiendo
-			if(readBuf[0]==52){ //Si detecta que pido desde la aplicación que suba
+			if(readBuf[0]==52||LDR_val<60){ //Si detecta que pido desde la aplicación que suba
 				subePersiana(5000); //subo la persiana
 				tiempo_motor=HAL_GetTick(); //cojo el tiempo
 				subiendo=1; //pongo el flag de subiendo a 1
@@ -363,14 +363,14 @@ void persianas(){ //Función del control completo de la persiana
 			if(HAL_GetTick()-tiempo_motor>tiempo_persiana){ //si ya ha llegado arriba la persiana
 			pareMotor(); //paro el motor
 			subiendo=0; //pongo la flag de subiendo a 0
-			subida=1;   //declaro que ya esta subida
+			bajada=1;   //declaro que ya esta bajada
 			readBuf[0]=0; //reseteo la variable de recepción del bluetooth
 			}
 		}
 	}
-	else if(subida==1){ //si esta subida
+	else if(bajada==1){ //si esta bajada
 		if(bajando==0){ //no se está bajando aun
-			if(readBuf[0]==52||LDR_val<60){  //las persianas se bajan al pedirlo desde el movil o al bajar la
+			if(readBuf[0]==52){  //las persianas se bajan al pedirlo desde el movil o al bajar la
 				bajaPersiana(5000);			// luminosidad (hacerse de noche)
 				tiempo_motor=HAL_GetTick();
 				bajando=1; //activo el flag de bajando
@@ -380,7 +380,7 @@ void persianas(){ //Función del control completo de la persiana
 			if(HAL_GetTick()-tiempo_motor>tiempo_persiana){ //y ha acabado de bajar
 			pareMotor(); //paro el motor
 			bajando=0; //reseteo flags
-			subida=0;
+			bajada=0;
 			readBuf[0]=0;
 			}
 		}
@@ -414,20 +414,20 @@ void pararMovimiento()
 
 void ventilador(){
 
-	if(readBuf[0]==53||sensorTemp_val<20){//el ventilador da calor si se pide desde el movil o al subir la temperatura
+	if(readBuf[0]==53||sensorTemp_val<30){//el ventilador da calor si se pide desde el movil o al subir la temperatura
 				movimientoCalor(5000);   // por debajo de 20 ºC
 				//tiempo_motor_ventilador=HAL_GetTick();
 				dando_calor=1;
 
 		}
 
-	else if(readBuf[0]==54||sensorTemp_val>25){  //el ventilador da frio si se pide desde el movil o al subir la temperatura
+	else if(readBuf[0]==54||sensorTemp_val>42){  //el ventilador da frio si se pide desde el movil o al subir la temperatura
 				movimientoFrio(5000);			// por encima de 25 ºC
 				//tiempo_motor_ventilador=HAL_GetTick();
 				dando_frio=1;
 
 		}
-	else if (readBuf[0]==55){ //parar motor desde aplicación
+	else if (readBuf[0]==55||((sensorTemp_val<=42) & (sensorTemp_val>=30))){ //parar motor desde aplicación
 		pararMovimiento();
 	}
 

@@ -96,6 +96,8 @@ void Error_Handler(void);
 #define IN1_ventilador_GPIO_Port GPIOA
 #define SERVO_Pin GPIO_PIN_15
 #define SERVO_GPIO_Port GPIOA
+#define ENABLE_VENTILADOR_Pin GPIO_PIN_8
+#define ENABLE_VENTILADOR_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
