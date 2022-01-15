@@ -156,7 +156,6 @@ void servo(TIM_HandleTypeDef* htim, int grados){
 
 void puerta(void)  //PUERTA
 {
-
 	if((debouncer2(&boton3,GPIOA,GPIO_PIN_0))==1||readBuf[0]==50) //si pulsamos el botón de desbloqueo o mandamos la orden desde la aplicación
 	{
 		  if(bloqueo==1 && abierto==0) //en caso de que la puerta este bloqueada y cerrada
@@ -213,7 +212,6 @@ void puerta(void)  //PUERTA
 	 HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, bloqueo); //control de la luz. ENCENDIDA->Bloqueada
 }
 
-
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) //Callback de los botone
 {
 	if(GPIO_Pin == GPIO_PIN_0)//Botón de bloqueo
@@ -229,10 +227,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) //Callback de los botone
 		boton2=1;
 	}
 }
-
-
-
-
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) //Callback para la medición del ultrasonidos
 {
@@ -294,6 +288,7 @@ void LDR(void) //función de lectura del LDR
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8,0); //Apagamos la luz
 
 }
+
 void temperatura(void) //Función para leer la temperatura
 {
 	HAL_ADC_Start(&hadc2);
@@ -322,12 +317,11 @@ void subePersiana(int s) //Función para bajar la persiana
 }
 
 void pareMotor() //Función que para el motor
-{;
+{
 	__HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, 0);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6,GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
 }
-
 
 void persianas(){ //Función del control completo de la persiana
 
