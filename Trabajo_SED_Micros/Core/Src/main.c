@@ -107,7 +107,7 @@ char readBuf[1];
 
 //variables persiana
 int subiendo=0, bajada=0, bajando=0;
-uint32_t tiempo_motor, tiempo_persiana=5000;
+uint32_t tiempo_motor, tiempo_persiana=3000;
 
 //variables ventilador
 
@@ -228,19 +228,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) //Callback de los botone
 	{
 		boton2=1;
 	}
-	/*if(GPIO_Pin == GPIO_PIN_14)
-	{
-		boton2=1;
-	}
-	if(GPIO_Pin==GPIO_PIN_3)
-	{
-		//if   (bloqueo == 1) {bloqueo = 0;}
-		//else             {bloqueo = 1;}
-	}
-	if(GPIO_Pin==GPIO_PIN_4)
-	{
-		//desactivar_alarma = 1;
-	}*/
 }
 
 
@@ -320,66 +307,59 @@ void temperatura(void) //Función para leer la temperatura
 
 }
 
-void subePersiana(int s) //Función de bajada de la persiana
+void bajaPersiana(int s) //Función de bajada de la persiana
 {
-	//TIM9->CCR1=s;
 	__HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, s);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6,GPIO_PIN_SET); //Giro horario
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
 }
 
-void bajaPersiana(int s) //Función para bajar la persiana
+void subePersiana(int s) //Función para bajar la persiana
 {
-	//TIM9->CCR1=s;
 	__HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, s);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6,GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_SET); //Giro antihorario
 }
 
 void pareMotor() //Función que para el motor
-{
-	//TIM9->CCR1=s;
+{;
 	__HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, 0);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6,GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
 }
 
-//Modificando el tiempo_persiana damos mas vueltas al motor
-//Actualmente con 5 s da 3 vueltas
-//Actualizar en función de la longitud de la persiana
-
 
 void persianas(){ //Función del control completo de la persiana
 
-	if(bajada==0){ //Si está bajada
-		if(subiendo==0){ //Y no se está subiendo
-			if(readBuf[0]==52||LDR_val<60){ //Si detecta que pido desde la aplicación que suba
-				subePersiana(5000); //subo la persiana
+	if(bajada==0){ //Si está subida
+		if(bajando==0){ //Y no se está subiendo
+			if(readBuf[0]==52||LDR_val<60){ //Si detecta que pido desde la aplicación que baje
+				bajaPersiana(5000); //bajo la persiana
 				tiempo_motor=HAL_GetTick(); //cojo el tiempo
-				subiendo=1; //pongo el flag de subiendo a 1
+				bajando=1; //pongo el flag de subiendo a 1
 			}
 		}
-		else if(subiendo==1){
-			if(HAL_GetTick()-tiempo_motor>tiempo_persiana){ //si ya ha llegado arriba la persiana
+		else if(bajando==1){
+			if(HAL_GetTick()-tiempo_motor>tiempo_persiana){ //si ya ha llegado abajo la persiana
 			pareMotor(); //paro el motor
-			subiendo=0; //pongo la flag de subiendo a 0
+			bajando=0; //pongo el flag de bajando a 0
 			bajada=1;   //declaro que ya esta bajada
 			readBuf[0]=0; //reseteo la variable de recepción del bluetooth
 			}
 		}
 	}
 	else if(bajada==1){ //si esta bajada
-		if(bajando==0){ //no se está bajando aun
-			if(readBuf[0]==52){  //las persianas se bajan al pedirlo desde el movil o al bajar la
-				bajaPersiana(5000);			// luminosidad (hacerse de noche)
+		if(subiendo==0){ //no se está subiendo aun
+			if(readBuf[0]==52){  //las persianas se suben al pedirlo desde el movil o al bajar la
+				subePersiana(5000);			// luminosidad (hacerse de noche)
 				tiempo_motor=HAL_GetTick();
-				bajando=1; //activo el flag de bajando
+				subiendo=1; //activo el flag de subiendo
 			}
 		}
-		else if(bajando==1){ //si está bajando
-			if(HAL_GetTick()-tiempo_motor>tiempo_persiana){ //y ha acabado de bajar
+		else if(subiendo==1){ //si está subiendo
+			if(HAL_GetTick()-tiempo_motor>tiempo_persiana){ //y ha acabado de subir
 			pareMotor(); //paro el motor
-			bajando=0; //reseteo flags
+			subiendo=0; //reseteo flags
 			bajada=0;
 			readBuf[0]=0;
 			}
@@ -406,38 +386,38 @@ void movimientoFrio(int s)
 void pararMovimiento()
 {
 	//TIM10->CCR1=s;
-	__HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, 0);
+	__HAL_TIM_SET_COMPARE(&htim10, TIM_CHANNEL_1, 0);
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8,GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8,GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9,GPIO_PIN_RESET);
 }
 
 
 void ventilador(){
 
-	if(readBuf[0]==53||sensorTemp_val<30){//el ventilador da calor si se pide desde el movil o al subir la temperatura
-				movimientoCalor(5000);   // por debajo de 20 ºC
+	//if(readBuf[0]==53||sensorTemp_val<30){//el ventilador da calor si se pide desde el movil o al subir la temperatura
+	if (readBuf[0]==55){ //parar motor desde aplicación
+		pararMovimiento();
+	}
+	else if(readBuf[0]==53 || sensorTemp_val<30){
+			movimientoCalor(5000);   // por debajo de 20 ºC
 				//tiempo_motor_ventilador=HAL_GetTick();
 				dando_calor=1;
 
 		}
 
-	else if(readBuf[0]==54||sensorTemp_val>42){  //el ventilador da frio si se pide desde el movil o al subir la temperatura
+	else if(readBuf[0]==54 || sensorTemp_val>190){  //el ventilador da frio si se pide desde el movil o al subir la temperatura
 				movimientoFrio(5000);			// por encima de 25 ºC
 				//tiempo_motor_ventilador=HAL_GetTick();
 				dando_frio=1;
 
 		}
-	else if (readBuf[0]==55||((sensorTemp_val<=42) & (sensorTemp_val>=30))){ //parar motor desde aplicación
-		pararMovimiento();
-	}
-
 }
 
 
 void alarma(void){ //Función completa de la alarma
 	HCSR04_Read(); //Leemos el valor del ultrasonidos
 	HAL_Delay(100);
-	if(Distance<10){ //Si la distancia es menor de 10 cm
+	if(Distance<10 & Distance>1){ //Si la distancia es menor de 10 cm
 		tiempo_alarma=HAL_GetTick(); //tomamos el tiempo en ese instante
  		htim4.Instance->CCR1=zumb; //encendemos el zumbador
 		sonando=1;
